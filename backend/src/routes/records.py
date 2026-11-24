@@ -9,6 +9,7 @@ from src.controllers.views import observation_view
 from src.models.base import Session
 from src.models.workflow import Observation
 from src.services.auth import current_user, roles
+from src.services.corrections import effective_by_observation
 from src.services.errors import BusinessError
 from src.services.observations import add_observations, clean_observation, parse_csv
 from src.utils.formatting import csv_text
@@ -26,8 +27,10 @@ def spec():
 def index(offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100), user=Depends(current_user)):
     with Session() as db:
         total = db.scalar(select(func.count(Observation.id)))
-        items = db.scalars(select(Observation).order_by(Observation.id.desc()).offset(offset).limit(limit))
-        return {'total': total, 'offset': offset, 'items': [observation_view(item) for item in items]}
+        items = list(db.scalars(select(Observation).order_by(Observation.id.desc()).offset(offset).limit(limit)))
+        effective = effective_by_observation(db, items)
+        return {'total': total, 'offset': offset,
+                'items': [observation_view(item, effective.get(item.id)) for item in items]}
 
 
 @router.post('/observations', status_code=201)

@@ -11,6 +11,8 @@ export function runTable(runs, message) {
   return table([
     {label:'分析名称',html: row => `<a href="#result/${row.id}">${esc(row.title)}</a>`},
     {label:'观测条数',key:'sample_size'}, {label:'状态',html:status},
+    {label:'补正批次',html:row => (row.correction_batches?.length
+      ? row.correction_batches.map(batch => `#${batch.id}`).join('、') : '—')},
     {label:'提交时间',html:row => timeLabel(row.created_at)},
   ], runs, message);
 }

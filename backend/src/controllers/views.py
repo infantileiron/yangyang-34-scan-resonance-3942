@@ -6,18 +6,22 @@ def review_view(item):
             'at': timestamp(item.created_at)} if item else None
 
 
-def run_view(item, review=None, *, include_result=False):
+def run_view(item, review=None, snapshot=None, *, include_result=False):
     view = {'id': item.id, 'title': item.title, 'owner': item.owner, 'status': item.status,
             'parameters': item.parameters, 'sample_size': item.sample_size,
             'snapshot_id': item.last_observation_id, 'created_at': timestamp(item.created_at),
-            'finished_at': timestamp(item.finished_at), 'review': review_view(review), 'error': item.error}
+            'finished_at': timestamp(item.finished_at), 'review': review_view(review), 'error': item.error,
+            'correction_batches': snapshot.batches if snapshot is not None else []}
     if include_result:
         view['result'] = item.result
     return view
 
 
-def observation_view(item):
-    return {'id': item.id, 'data': item.payload, 'created_at': timestamp(item.created_at)}
+def observation_view(item, effective=None):
+    view = {'id': item.id, 'data': item.payload, 'created_at': timestamp(item.created_at)}
+    if effective is not None:
+        view['effective'] = effective
+    return view
 
 
 def schedule_view(item):

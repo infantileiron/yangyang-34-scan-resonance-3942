@@ -16,3 +16,9 @@ class RunStatus(StrEnum):
 class Decision(StrEnum):
     APPROVED = 'approved'
     RETURNED = 'returned'
+
+
+class BatchStatus(StrEnum):
+    PENDING = 'pending'
+    APPLIED = 'applied'
+    CONFLICTED = 'conflicted'

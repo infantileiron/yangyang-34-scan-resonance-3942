@@ -7,7 +7,8 @@ from src.config.project import SPEC
 from src.constants.enums import Decision, Role, RunStatus
 from src.domain.analysis import analyze
 from src.models.base import utc_now
-from src.models.workflow import AnalysisRun, AuditEvent, Observation, Review
+from src.models.workflow import AnalysisRun, AnalysisSnapshot, AuditEvent, Observation, Review
+from src.services import corrections
 from src.services.errors import BusinessError
 from src.services.validation import validated
 
@@ -16,26 +17,36 @@ logger = logging.getLogger(__name__)
 
 def create_run(db, request, actor):
     parameters = validated(SPEC['parameters'], request.parameters, defaults=True)
-    sample_ids = list(db.scalars(select(Observation.id).order_by(Observation.id)))
-    if not sample_ids:
+    observations = list(db.scalars(select(Observation).order_by(Observation.id)))
+    if not observations:
         raise BusinessError('请先导入观测记录')
-    item = AnalysisRun(title=request.title, owner=actor, parameters=parameters, observation_ids=sample_ids,
-                       last_observation_id=sample_ids[-1], sample_size=len(sample_ids))
+    # 按发起时的有效测次固化快照：同一批补正要么整批用新值，要么整批用旧值。
+    snapshot, batches = corrections.effective_snapshot(db)
+    item = AnalysisRun(title=request.title, owner=actor, parameters=parameters,
+                       observation_ids=[row.id for row in observations],
+                       last_observation_id=observations[-1].id, sample_size=len(observations))
     db.add(item)
     db.flush()
-    db.add(AuditEvent(actor=actor, action='run.created', detail=f'分析 #{item.id}，固化 {item.sample_size} 条观测'))
+    db.add(AnalysisSnapshot(run_id=item.id, rows=snapshot, batches=batches))
+    detail = f'分析 #{item.id}，固化 {item.sample_size} 条观测'
+    if batches:
+        detail += '，补正批次 ' + '、'.join(f'#{batch["id"]}' for batch in batches)
+    db.add(AuditEvent(actor=actor, action='run.created', detail=detail[:200]))
+    db.flush()
     return item
 
 
 def visible_runs(db, user, run_id=None):
-    query = select(AnalysisRun, Review).outerjoin(Review, Review.run_id == AnalysisRun.id)
+    query = (select(AnalysisRun, Review, AnalysisSnapshot)
+             .outerjoin(Review, Review.run_id == AnalysisRun.id)
+             .outerjoin(AnalysisSnapshot, AnalysisSnapshot.run_id == AnalysisRun.id))
     if user['role'] == Role.VIEWER:
         query = query.where(Review.decision == Decision.APPROVED)
     if run_id is not None:
-        pair = db.execute(query.where(AnalysisRun.id == run_id)).first()
-        if pair is None:
+        row = db.execute(query.where(AnalysisRun.id == run_id)).first()
+        if row is None:
             raise BusinessError('没有可查看的分析结果', 404)
-        return pair
+        return row
     return db.execute(query.order_by(AnalysisRun.id.desc()).limit(100)).all()
 
 
@@ -62,8 +73,9 @@ def run_pending(db):
     if item is None:
         return False
     try:
-        sample = list(db.scalars(select(Observation.payload).where(Observation.id.in_(item.observation_ids))
-                                 .order_by(Observation.id)))
+        snapshot = db.scalar(select(AnalysisSnapshot).where(AnalysisSnapshot.run_id == item.id))
+        sample = snapshot.rows if snapshot is not None else list(db.scalars(
+            select(Observation.payload).where(Observation.id.in_(item.observation_ids)).order_by(Observation.id)))
         result = analyze(sample, item.parameters)
         if not {'headline', 'summary', 'metrics', 'columns', 'rows'} <= set(result):
             raise RuntimeError('invalid result schema')

@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from src.config.project import SPEC
 from src.domain import analysis
 from src.models.workflow import AuditEvent, Observation
+from src.services import corrections
 from src.services.errors import BusinessError
 from src.services.validation import validated
 
@@ -71,4 +72,7 @@ def add_observations(db, rows, actor, action):
         db.flush()
     except IntegrityError as exc:
         raise BusinessError('有相同记录刚刚写入，请刷新后重试', 409) from exc
+    if items:
+        # 原测次补齐后整批核对所有引用它的暂挂补正批次。
+        corrections.recheck_pending(db, {(row['desk'], row['scan']) for row in fresh.values()})
     return items
