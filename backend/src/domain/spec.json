@@ -1,0 +1,50 @@
+{
+  "organization": "石笺标本馆数字化组",
+  "tagline": "同台复测拆开扫描台差异和共振变化",
+  "source": "矿物标本条纹校靶扫描记录及扫描车共振计测次",
+  "record_name": "扫描参数配对",
+  "algorithm": "台内去均值重复测量相关",
+  "formula": "减去每台的本台均值后，计算共振幅值与纹影长度的 Pearson 相关 r；共同斜率=中心积和 ÷ 幅值为平方和。采用 f=n−组数−1 的 t=r√(f/(1−r²)) 检验。并列显示忽略工位的粗相关，以及各台共同斜率残差。",
+  "decision_prompt": "应优先复勘窗边扫描台、避振台，还是所有扫描台的移动共振？",
+  "fields": [
+    {
+      "key": "desk",
+      "label": "扫描台",
+      "example": "矿物三号台",
+      "type": "text"
+    },
+    {
+      "key": "scan",
+      "label": "扫描批次编号",
+      "example": "SK-03-X21",
+      "type": "text"
+    },
+    {
+      "key": "amplitude",
+      "label": "扫描车共振幅值（μm）",
+      "example": 12.4,
+      "type": "number",
+      "min": 0,
+      "max": 200
+    },
+    {
+      "key": "streak",
+      "label": "暗纹平均长度（px）",
+      "example": 6.8,
+      "type": "number",
+      "min": 0,
+      "max": 1000
+    }
+  ],
+  "parameters": [
+    {
+      "key": "alert",
+      "label": "单次纹影长度复勘线（px）",
+      "type": "number",
+      "min": 1,
+      "max": 500,
+      "default": 9,
+      "help": "此线用于列各台需要复勘的原始记录。"
+    }
+  ]
+}

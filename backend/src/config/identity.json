@@ -1,0 +1,14 @@
+{
+  "slug": "yangyang-34-scan-resonance",
+  "title": "石笺馆藏·矿物标本扫描纹影复勘",
+  "direction": "台内重复测量相关",
+  "layout": "invert",
+  "theme": "石青暗房边缘像",
+  "recipient": "石笺标本馆数字化组",
+  "work_modules": [
+    "同台扫描测次",
+    "台内去均值",
+    "相关临界工位复盘"
+  ],
+  "follow_latest": false
+}
